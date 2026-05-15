@@ -10,6 +10,7 @@ import tempfile
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 from sentence_transformers import SentenceTransformer, util
+from reportlab.platypus import Image
 
 @st.cache_resource
 def load_model():
@@ -711,19 +712,79 @@ if st.session_state.active_tab == "chat":
         with col2:
             def generate_pdf():
                 temp_pdf = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+
                 doc = SimpleDocTemplate(temp_pdf.name)
                 styles = getSampleStyleSheet()
                 elements = []
-                elements.append(Paragraph("AI E-Commerce Intelligence Report", styles['Title']))
+
+                # Title
+                elements.append(Paragraph(
+                    "AI E-Commerce Intelligence Report",
+                    styles['Title']
+                ))
+
                 elements.append(Spacer(1, 10))
-                elements.append(Paragraph(f"<b>Query:</b> {st.session_state.get('last_query','')}", styles['Normal']))
+
+                # Query
+                elements.append(Paragraph(
+                    f"<b>Query:</b> {st.session_state.get('last_query','')}",
+                    styles['Normal']
+                ))
+
                 elements.append(Spacer(1, 10))
+
+                # Table Data
                 data = st.session_state["last_result"]
-                table_data = [list(data[0].keys())] + [list(d.values()) for d in data]
-                elements.append(Table(table_data))
-                elements.append(Spacer(1, 10))
-                elements.append(Paragraph(f"<b>AI Insight:</b> {st.session_state.get('last_insight','')}", styles['Normal']))
+
+                if isinstance(data, list) and len(data) > 0:
+                    table_data = [list(data[0].keys())] + [list(d.values()) for d in data]
+                    elements.append(Table(table_data))
+
+                elements.append(Spacer(1, 20))
+
+                # Generate chart image
+                chart_type = detect_chart_type(
+                    st.session_state.get("last_query", ""),
+                    data
+                )
+
+                if chart_type != "none":
+
+                    df = pd.DataFrame(data)
+
+                    cols = df.columns.tolist()
+                    label_col, value_col = cols[0], cols[1]
+
+                    if chart_type == "bar":
+                        fig = px.bar(df, x=label_col, y=value_col)
+
+                    elif chart_type == "line":
+                        fig = px.line(df, x=label_col, y=value_col)
+
+                    elif chart_type == "pie":
+                        fig = px.pie(df, names=label_col, values=value_col)
+
+                    # Save chart as PNG
+                    chart_path = tempfile.NamedTemporaryFile(
+                        delete=False,
+                        suffix=".png"
+                    ).name
+
+                    fig.write_image(chart_path)
+
+                    # Add chart image to PDF
+                    elements.append(Image(chart_path, width=500, height=300))
+
+                elements.append(Spacer(1, 20))
+
+                # Insight
+                elements.append(Paragraph(
+                    f"<b>AI Insight:</b> {st.session_state.get('last_insight','')}",
+                    styles['Normal']
+                ))
+
                 doc.build(elements)
+
                 return temp_pdf.name
             pdf_path = generate_pdf()
             with open(pdf_path, "rb") as f:

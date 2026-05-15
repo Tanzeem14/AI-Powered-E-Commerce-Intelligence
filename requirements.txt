@@ -1,0 +1,12 @@
+streamlit==1.55.0
+plotly==6.6.0
+pandas==2.3.3
+reportlab==4.4.10
+sentence-transformers==5.4.1
+python-dotenv==1.2.1
+SQLAlchemy==2.0.46
+langchain-groq==1.1.2
+PyMySQL==1.1.2
+matplotlib==3.10.8
+Faker==40.8.0
+google-genai==1.63.0
